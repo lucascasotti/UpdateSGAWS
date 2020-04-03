@@ -6,11 +6,18 @@ if [ ! -f ./oldip ]; then
     $( echo "" > ./oldip )
 fi
 
+sgName="XXX"
+
+if [ ! -z "$1" ]; then 
+
+    sgName=$1
+fi
+
 oldip=$( egrep -i "(?:[0-9]{1,3}\.){3}[0-9]{1,3}" ./oldip )
 
 echo "$oldip"
 
-novoip=$( curl -L http://evolvest.com.br/meuip.php )
+newip=$( curl -L http://evolvest.com.br/meuip.php )
 
 IFS=$']' read -rd '' -a array <<< "$clients"
 
@@ -24,25 +31,25 @@ do
                 then
                         echo "Cliente - $client"
 
-                        for CidrIp in  $( aws ec2 describe-security-groups --group-name Evolve --profile "$client" --output json | jq -r '.SecurityGroups[0].IpPermissions[0].IpRanges[]|"\(.CidrIp)"' )
+                        for CidrIp in  $( aws ec2 describe-security-groups --group-name "$sgName" --profile "$client" --output json | jq -r '.SecurityGroups[0].IpPermissions[0].IpRanges[]|"\(.CidrIp)"' )
                         do
                                 if [ "$CidrIp" == "$oldip/32" ];
                                 then
-                                        echo "Revogando o IP - $CidrIp"
-                                        aws ec2 revoke-security-group-ingress --group-name Evolve --protocol all --port -1 --cidr "$CidrIp" --profile "$client"
-                                        echo "Liberando o IP $novoip"
-                                        aws ec2 authorize-security-group-ingress --group-name Evolve --protocol all --port -1 --cidr "$novoip/32" --profile "$client"
+                                        echo "Revoking IP - $CidrIp"
+                                        aws ec2 revoke-security-group-ingress --group-name "$sgName" --protocol all --port -1 --cidr "$CidrIp" --profile "$client"
+                                        echo "Authorizing IP $newip"
+                                        aws ec2 authorize-security-group-ingress --group-name "$sgName" --protocol all --port -1 --cidr "$newip/32" --profile "$client"
                                 else
                                         echo "Ignorar o IP - $CidrIp"
                                 fi
                         done
                 else
                         echo "Cliente - $client"
-                        echo "Sem IP Anterior"
-                        echo "Liberando o IP $novoip"
-                        aws ec2 authorize-security-group-ingress --group-name Evolve --protocol all --port -1 --cidr "$novoip/32" --profile "$client"
+                        echo "No previous IP"
+                        echo "Authorizing IP $newip"
+                        aws ec2 authorize-security-group-ingress --group-name "$sgName" --protocol all --port -1 --cidr "$newip/32" --profile "$client"
                 fi
-                echo "Salvando novo IP - $novoip"
-                $( echo "$novoip" > ./oldip )
+                echo "Storing new IP - $newip"
+                $( echo "$newip" > ./oldip )
         fi
 done

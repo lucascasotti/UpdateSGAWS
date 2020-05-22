@@ -17,7 +17,7 @@ oldip=$( egrep -i "(?:[0-9]{1,3}\.){3}[0-9]{1,3}" ./oldip )
 
 echo "$oldip"
 
-newip=$( curl -L http://evolvest.com.br/meuip.php )
+newip=$( curl -L http://meuip.evolvest.com.br/ )
 
 IFS=$']' read -rd '' -a array <<< "$clients"
 
